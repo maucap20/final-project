@@ -1,23 +1,29 @@
-#!/usr/bin/env python3
+from flask import Flask, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 
-# Standard library imports
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///volunteer.db'
+db = SQLAlchemy(app)
+CORS(app)  # Allow cross-origin requests (for development purposes)
 
-# Remote library imports
-from flask import request
-from flask_restful import Resource
+# Define your User model
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(100), nullable=False)
+    # Add other fields as needed
 
-# Local imports
-from config import app, db, api
-# Add your model imports
-
-
-# Views go here!
-
-@app.route('/')
-def index():
-    return '<h1>Phase 4 Project Server</h1>'
-
+# Set up your registration route
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    # Process and validate registration data
+    # Create a new user in the database (sample code)
+    new_user = User(email=data['email'], password=data['password'])
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({'message': 'Registration successful'})
 
 if __name__ == '__main__':
-    app.run(port=5555, debug=True)
-
+    app.run(debug=True)
