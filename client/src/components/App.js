@@ -1,25 +1,25 @@
 import React from 'react';
-import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
-import RegistrationForm from './components/RegistrationForm';
-import BrowseOpportunities from './components/BrowseOpportunities';
-import OpportunityDetails from './components/OpportunityDetails';
-import OrganizationProfile from './components/OrganizationProfile';
-import UserDashboard from './components/UserDashboard';
+import {Route, Switch } from 'react-router-dom';
+import RegistrationForm from './RegistrationForm';
+//import BrowseOpportunities from './components/BrowseOpportunities';
+//import OpportunityDetails from './components/OpportunityDetails';
+//import OrganizationProfile from './components/OrganizationProfile';
+import UserDashboard from './UserDashboard';
+import LoginForm from './LoginForm';
 
 function App() {
   return (
-    <Router>
-      <div>
-        <Switch>
-          <Route path="/" exact component={UserDashboard} />
-          <Route path="/register" component={RegistrationForm} />
-          <Route path="/browse" component={BrowseOpportunities} />
-          <Route path="/opportunity/:id" component={OpportunityDetails} />
-          <Route path="/organization/:id" component={OrganizationProfile} />
-        </Switch>
-      </div>
-    </Router>
-  );
-}
+    <div>
+      <Switch>
+        <Route exact path="/">  <UserDashboard /> </Route>
+        <Route path="/register">  <RegistrationForm /> </Route>
+        <Route path="/login"> <LoginForm /> </Route>
+        {/* <Route path="/browse" element={<BrowseOpportunities />} /> */}
+        {/* <Route path="/opportunity/:id" element={<OpportunityDetails />} /> */}
+        {/* <Route path="/organization/:id" element={<OrganizationProfile />} /> */}
+      </Switch>
+    </div >
+      );
+  }
 
-export default App;
+      export default App;
