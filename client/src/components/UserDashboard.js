@@ -13,7 +13,23 @@ const UserDashboard = () => {
     }, []);
 
     const handleLogout = () => {
-        // Call your API to logout the user
+        fetch('/api/logout', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => {
+            if (response.ok) {
+                console.log('Logged out successfully');
+                // redirect to login page or show a logout message
+            } else {
+                console.error('Error logging out');
+            }
+        })
+        .catch(error => {
+            console.error('Error logging out:', error);
+        });
     };
     return (
         <div>

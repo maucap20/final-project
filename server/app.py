@@ -2,25 +2,24 @@ from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt 
-from models import User, VolunteerOpportunity, Organization
+from models import User, VolunteerOpportunity, Organization, Opportunity
 from flask_login import LoginManager
 from flask_login import login_user, logout_user, login_required
 
 from config import app, api, db
-# from server.models import Opportunity
-# app = Flask(__name__)
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///volunteer.db'
-# db = SQLAlchemy(app)
-# bcrypt = Bcrypt(app)
-# CORS(app) 
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///volunteer.db'
+db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
+CORS(app) 
 
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
+# login_manager = LoginManager()
+# login_manager.init_app(app)
+# login_manager.login_view = 'login'
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+# @login_manager.user_loader
+# def load_user(user_id):
+#     return User.query.get(int(user_id))
 
 
 class User(db.Model):
@@ -77,26 +76,26 @@ def add_opportunity():
     db.session.commit()
     return jsonify({'message': 'Opportunity added'})
 
-@app.route('/opportunities', methods=['GET'])
+@app.route('/api/opportunities', methods=['GET'])
 def get_opportunities():
     opps = VolunteerOpportunity.query.all()
     return jsonify([{'id': opp.id, 'title': opp.title, 'description': opp.description, 'organization_id': opp.organization_id} for opp in opps])
 
-# @app.route('/opportunities', methods=['PATCH'])
-# def update_opportunity(id):
-#     opportunity = Opportunity.query.get_or_404(id)
-#     data = request.get_json()
-#     opportunity.title = data['title']
-#     opportunity.description = data['description']
-#     db.session.commit()
-#     return jsonify(opportunity.serialize())
+@app.route('/api/opportunities', methods=['PATCH'])
+def update_opportunity(id):
+    opportunity = Opportunity.query.get(id)
+    data = request.get_json()
+    opportunity.title = data['title']
+    opportunity.description = data['description']
+    db.session.commit()
+    return jsonify(opportunity.serialize())
 
-# @app.route('/opportunities', methods=['DELETE'])
-# def delete_opportunity(id):
-#     opportunity = Opportunity.query.get_or_404(id)
-#     db.session.delete(opportunity)
-#     db.session.commit()
-#     return jsonify({'message': 'Opportunity deleted successfully'})
+@app.route('/api/opportunities', methods=['DELETE'])
+def delete_opportunity(id):
+    opportunity = Opportunity.query.get(id)
+    db.session.delete(opportunity)
+    db.session.commit()
+    return jsonify({'message': 'Opportunity deleted successfully'})
 
 if __name__ == '__main__':
     app.run(debug = True, port=5555)
