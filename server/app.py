@@ -6,6 +6,7 @@ from flask_restful import Resource
 from config import app, api, db
 from flask_bcrypt import Bcrypt
 from sqlalchemy.exc import IntegrityError  # This is for handling unique constraint violations
+import random
 
 bcrypt = Bcrypt(app)
 
@@ -84,6 +85,114 @@ def login_route():
             login_user(user)
             return jsonify({'message': 'Logged in successfully'})
         return jsonify({'message': 'Invalid credentials'}), 401
+    
+@app.route('/users/<int:user_id>', methods=['GET', 'PATCH'])
+def get_user(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return make_response({'error': 'User not found'}, 404)
+    return make_response(user.to_dict(), 200)
+def patch_name(user_id):
+    user=User.query.filter(User.id==id).first()
+    data=request.get_json()
+    for attr in data:
+        setattr(user, attr, data[attr])
+    db.session.commit()
+    response=make_response(user.to_dict(), 200)
+    return response
+
+@app.route('/users/<int:user_id>', methods=['PUT'])
+def update_user(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return make_response({'error': 'User not found'}, 404)
+    
+    data = request.get_json()
+    user.name = data.get('name', user.name)
+    user.username = data.get('username', user.username)
+    if data.get('password'):
+        user.password_hash = data['password']
+    
+    db.session.commit()
+    
+    return make_response(user.to_dict(), 200)
+
+@app.route('/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return make_response({'error': 'User not found'}, 404)
+    if session.get('user_id') == user_id:
+        session.pop('user_id')
+
+    db.session.delete(user)
+    db.session.commit()
+    
+    return make_response({'message': 'User deleted successfully'}, 200)
+
+
+@app.route('/add_user_to_organization', methods=['POST'])
+def add_user_to_organization():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    organization_id = data.get('organization_id')
+
+    user = User.query.get(user_id)
+    organization = Organization.query.get(organization_id)
+
+    if not user or not organization:
+        return jsonify({'error': 'User or organization not found'}), 404
+
+    existing_association = UserOrganization.query.filter_by(user_id=user_id, organization_id=organization_id).first()
+    if existing_association:
+        return jsonify({'error': 'User is already associated with this organization'}), 400
+
+    association = UserOrganization(user=user, organization=organization)
+    db.session.add(association)
+    db.session.commit()
+
+    return jsonify({'message': 'User added to organization successfully'}), 200
+
+@app.route('/users/<int:user_id>/organizations', methods=['GET'])
+def get_user_organizations(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    organizations = [org.to_dict() for org in user.organizations]
+    return jsonify(organizations), 200
+
+@app.route('/users/<int:user_id>/organizations/<int:org_id>', methods=['POST'])
+def add_user_to_organization(user_id, org_id):
+    user = User.query.get(user_id)
+    organization = Organization.query.get(org_id)
+
+    if not user or not organization:
+        return jsonify({'error': 'User or organization not found'}), 404
+
+    # Check if already added
+    existing = UserOrganization.query.filter_by(user_id=user_id, organization_id=org_id).first()
+    if existing:
+        return jsonify({'message': 'User already added to the organization'}), 409
+
+    association = UserOrganization(user=user, organization=organization)
+    db.session.add(association)
+    db.session.commit()
+
+    return jsonify({'message': 'User added to organization successfully'}), 200
+
+@app.route('/users/<int:user_id>/organizations/<int:org_id>', methods=['DELETE'])
+def remove_user_from_organization(user_id, org_id):
+    association = UserOrganization.query.filter_by(user_id=user_id, organization_id=org_id).first()
+
+    if not association:
+        return jsonify({'error': 'Relationship not found'}), 404
+
+    db.session.delete(association)
+    db.session.commit()
+
+    return jsonify({'message': 'User removed from organization successfully'}), 200
+
 
 @app.route('/api/logout')
 @login_required
@@ -136,6 +245,14 @@ def delete_opportunity_route(id):
     db.session.delete(opportunity)
     db.session.commit()
     return jsonify({'message': 'Opportunity deleted successfully'})
+
+ORG_NAMES = ["TechCorp", "EnviroSolutions", "InnoVentures", "MarketMakers", "DynaDudes", "StratoWorks", "WebWeavers"]
+
+@app.route('/random-organizations', methods=['GET'])
+def get_random_organizations():
+    count = random.randint(1, len(ORG_NAMES))
+    selected_orgs = random.sample(ORG_NAMES, count)
+    return jsonify(selected_orgs), 200
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
