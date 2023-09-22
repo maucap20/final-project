@@ -1,69 +1,65 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
+import { useNavigate } from "react-router-dom";
+import { UserContext } from './User';
+
 
 function RegistrationForm() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const history = useNavigate();
+  const [users, setUsers] = useState([])
+  const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const {user, setUser} = useContext(UserContext)
+  const [error, setError] = useState('')
+  const [signUpError, setSignUpError] = useState("");
 
-  const handleRegister = (event) => {
+
+  const addUser = (newUser) => {
+    setUsers([...users, newUser])
+  }
+
+  const newUser = { name: name, username: username, password: password }
+
+  const handleSubmit = (event) => {
     event.preventDefault();
+    handlePost(newUser);
+  }
 
-    if (!email || !password) {
-        console.error('Email and password are required');
-        return;
-    }
-
-    // if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
-    //     console.error('Invalid email address');
-    //     return;
-    // }
-
-    fetch('/api/register', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            email: email,
-            password: password,
-        }),
+  function handlePost(newUser) {
+    fetch('/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newUser)
     })
-    .then(response => response.json().then(data => ({
-        data: data,
-        status: response.status,
-    })))
-    .then(res => {
-        if (res.status === 200) {
-            console.log(res.data);
-            // handle success 
+      .then(r => {
+        if (r.ok) {
+          r.json().then(r_body => {
+            setError('')
+            setUser(r_body)
+
+          })
         } else {
-            console.error(res.data);
-            // handle error 
+          r.json().then(message => setError(message.error))
         }
-    })
-    .catch(error => {
-        console.error('Error registering:', error);
-    });
-};
+      })
+      .then(newUser => addUser(newUser))
+
+  };
+
 
 
   return (
-    <div>
-      <h2>Register</h2>
-      <form onSubmit={handleRegister}>
-      <input
-        type= "text"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <button >Register</button>
-      </form>
+    <div className='sign-up-parent-container'>
+      <div className="sign-up-container">
+        {signUpError && <h2 className="sign-up-error">{signUpError}</h2>}
+        <h1 className="sign-up-header">Create an Account</h1>
+        <form onSubmit={handleSubmit}>
+          <input type="text" name="Name" placeholder="Name*" onChange={e=> setName(e.target.value)} />
+          <input type="text" name="username" placeholder="Username/Email*" onChange={e=> setUsername(e.target.value)} />
+          <input type="password" name="password" placeholder="Password*" onChange={e=> setPassword(e.target.value)} />
+          <button className="sign-up-button" type="submit" onClick = {handleSubmit}>Submit</button>
+        </form>
+      </div>
     </div>
   );
 }

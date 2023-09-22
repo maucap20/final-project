@@ -1,49 +1,86 @@
-from config import db
-from flask_login import UserMixin
-from flask_bcrypt import generate_password_hash, check_password_hash
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import validates
+from sqlalchemy_serializer import SerializerMixin
+from sqlalchemy.ext.associationproxy import association_proxy
+from flask_bcrypt import bcrypt
+from config import db, bcrypt
 
-registrations = db.Table('registrations',
-    db.Column('user_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
-    db.Column('opportunity_id', db.Integer, db.ForeignKey('opportunities.id'), primary_key=True)
-)
-
-
-
-
-class User(db.Model, UserMixin):
-    __tablename__ = "users"
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
-    first_name = db.Column(db.String(50), nullable=False)
-    last_name = db.Column(db.String(50), nullable=False)
-    opportunities = db.relationship('Opportunity', secondary=registrations, back_populates='users')
+class User(db.Model, SerializerMixin):
+    __tablename__ = 'users'
     
-    @validates("password")
-    def validates_password(self, key, new_password):
-        if not new_password:
-            raise ValueError("Please set a password")
-        
-        has_letter = any(char.isalpha() for char in new_password)
-        has_number = any(char.isdigit() for char in new_password)
-
-        if not (has_letter and has_number):
-            raise ValueError("Password must contain at least one letter AND at least one number")
-        
-        return generate_password_hash(new_password).decode('utf-8')
-
-class Organization(db.Model):
-    __tablename__ = "organizations"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-    opportunities = db.relationship('Opportunity', backref='organization', lazy=True)
+    name = db.Column(db.String)
+    username = db.Column(db.String, unique=True)
+    _password_hash = db.Column(db.String)
 
-class Opportunity(db.Model):
-    __tablename__ = 'opportunities'
+    memberships = db.relationship('UserOrganization', back_populates='user', cascade='all, delete-orphan')
+    organizations = association_proxy('memberships', 'organization')
+
+    @property
+    def password_hash(self):
+        return self._password_hash
+    
+    @password_hash.setter
+    def password_hash(self, new_password):
+        if isinstance(new_password, str) and 1 <= len(new_password) <= 15:
+            secret = new_password.encode('utf-8')
+            supersecret = bcrypt.generate_password_hash(secret)
+            new_password_hash = supersecret.decode('utf-8')
+            self._password_hash = new_password_hash
+        else:
+            raise ValueError('Password must be between 1-15 characters!')
+        
+    def authenticate(self, test_string):
+        return bcrypt.check_password_hash(self.password_hash, test_string.encode('utf-8'))
+
+    @validates('name')
+    def validates_name(self, key, new_name):
+        if isinstance(new_name, str) and 1 <= len(new_name) <= 20:
+            return new_name
+        else:
+            raise ValueError('Name must be between 1-20 characters!')
+
+    serialize_rules = ('-memberships', '-organizations', )
+
+    def __repr__(self):
+        return f'<User {self.id}: {self.name} : {self.username}>'
+
+class UserOrganization(db.Model, SerializerMixin):
+    __tablename__ = 'user_organizations'
+    
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'), nullable=False)
-    users = db.relationship('User', secondary=registrations, back_populates='opportunities')
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'))
+
+    user = db.relationship('User', back_populates='memberships')
+    organization = db.relationship('Organization', back_populates='memberships')
+
+    def __repr__(self):
+        return f'<UserOrganization {self.id}>'
+
+class Organization(db.Model, SerializerMixin):
+    __tablename__ = 'organizations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    motto = db.Column(db.String)
+
+    memberships = db.relationship('UserOrganization', back_populates='organization')
+    users = association_proxy('memberships', 'user')
+
+    serialize_rules = ('-memberships', '-users')
+
+    def __repr__(self):
+        return f'<Organization {self.id}: {self.name}: {self.motto}>'
+
+class Event(db.Model, SerializerMixin):
+    __tablename__ = 'events'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String, nullable=False)
+    description = db.Column(db.String)
+    co_mingle = db.Column(db.Boolean)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id'))
+
+    def __repr__(self):
+        return f'<Event {self.id}: {self.title}:{self.description} : {self.co_mingle}>'

@@ -1,76 +1,84 @@
-import React, { useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { Form, Input } from "semantic-ui-react";
+import { Card } from "semantic-ui-react";
+import { useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { UserContext } from "./User";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-function LoginForm({ loginStatus, handleLogin }) {
-  const history = useHistory();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState(null);
+function LoginForm() {
 
-  const handleUsernameChange = (event) => {
-    setUsername(event.target.value);
-  };
+    const defaultCredentials = { username: '', password: '' }
+    const [credentials, setCredentials] = useState(defaultCredentials);
+    const { setUser } = useContext(UserContext);
+    const [error, setError] = useState('');
 
-  const handlePasswordChange = (event) => {
-    setPassword(event.target.value);
-  };
+    const history = useNavigate();
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    try {
-      const response = await fetch('api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: username,
-          password: password,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.message === 'Login successful') {
-          setLoginError(null);
-          handleLogin(data);
-          history.push(`/profile/${data.user_id}`);
-        } else {
-          setLoginError('Invalid username or password');
-        }
-      } else {
-        setLoginError('Invalid username or password');
-      }
-    } catch (error) {
-      console.error('Error logging in: ', error);
-      setLoginError('An error occurred while logging in');
+    const updateCredentials = e => {
+        const { name, value } = e.target;
+        setCredentials(prevCredentials => ({ ...prevCredentials, [name]: value }));
     }
-  };
 
-  return (
-    <div>
-      <div className="login-container">
-        {loginError && <h2 className="login-error">{loginError}</h2>}
-        <h1 className="log-in-header">Welcome Back</h1>
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={handleUsernameChange}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={handlePasswordChange}
-        />
-        <button className="login-button" onClick={handleSubmit}>
-          Log In
-        </button>
-      </div>
-    </div>
-  );
+    const handleLogin = async () => {
+        try {
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(credentials)
+            });
+
+            if (response.status === 200) {
+                const userData = await response.json();
+                setUser(userData);
+                toast.success('Logged in successfully!', {
+                    position: toast.POSITION.TOP_CENTER,
+                    autoClose: 2000,
+                });
+                history.push('/Home');
+            } else if (response.status === 401) {
+                setError('Incorrect password');
+            } else if (response.status === 404) {
+                setError('User not found');
+            } else {
+                const data = await response.json();
+                setError(data.error || 'Failed to Login');
+            }
+        } catch (err) {
+            setError('Unexpected Error Logging in, try again');
+        }
+    }
+
+    return (
+        <div>
+            <Card>
+                <h1>Service Center Login</h1>
+                <Form onSubmit={handleLogin}>
+                    <Form.Input>
+                        <label>Username</label>
+                        <Input
+                            name='username'
+                            onChange={updateCredentials}
+                            type='text'
+                            placeholder='Username'
+                            value={credentials.username} />
+                    </Form.Input>
+                    <Form.Input>
+                        <label>Password</label>
+                        <Input
+                            name='password'
+                            type='password'
+                            onChange={updateCredentials}
+                            value={credentials.password}
+                            placeholder='Password' />
+                    </Form.Input>
+                    <Form.Button>Sign In</Form.Button>
+                </Form>
+                {error && <div>{error}</div>}
+                <ToastContainer />
+            </Card>
+        </div>
+    )
 }
 
 export default LoginForm;
